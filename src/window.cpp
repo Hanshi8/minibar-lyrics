@@ -128,17 +128,17 @@ UINT ShowContextMenu(HWND hwnd, POINT screenPt, const MenuState& state) {
     if (!menu) return 0;
 
     HMENU modes = CreatePopupMenu();
-    AppendMenuW(modes, MF_STRING, IDM_MODE_OVERLAY, L"Overlay");
-    AppendMenuW(modes, MF_STRING, IDM_MODE_DOCKED, L"Docked to an edge");
-    AppendMenuW(modes, MF_STRING, IDM_MODE_TASKBAR, L"In the taskbar");
+    AppendMenuW(modes, MF_STRING, IDM_MODE_OVERLAY, L"悬浮");
+    AppendMenuW(modes, MF_STRING, IDM_MODE_DOCKED, L"停靠到屏幕边缘");
+    AppendMenuW(modes, MF_STRING, IDM_MODE_TASKBAR, L"嵌到任务栏");
     const UINT modeId = state.mode == BarMode::Docked    ? IDM_MODE_DOCKED
                         : state.mode == BarMode::Taskbar ? IDM_MODE_TASKBAR
                                                          : IDM_MODE_OVERLAY;
     CheckMenuRadioItem(modes, IDM_MODE_OVERLAY, IDM_MODE_TASKBAR, modeId, MF_BYCOMMAND);
 
     HMENU looks = CreatePopupMenu();
-    AppendMenuW(looks, MF_STRING, IDM_LAYOUT_BAR, L"Bar");
-    AppendMenuW(looks, MF_STRING, IDM_LAYOUT_TILE, L"Tile");
+    AppendMenuW(looks, MF_STRING, IDM_LAYOUT_BAR, L"横条");
+    AppendMenuW(looks, MF_STRING, IDM_LAYOUT_TILE, L"方块");
     CheckMenuRadioItem(looks, IDM_LAYOUT_BAR, IDM_LAYOUT_TILE,
                        state.layout == OverlayLayout::Tile ? IDM_LAYOUT_TILE : IDM_LAYOUT_BAR,
                        MF_BYCOMMAND);
@@ -146,7 +146,7 @@ UINT ShowContextMenu(HWND hwnd, POINT screenPt, const MenuState& state) {
     // Selettore di player: con due sorgenti attive (Spotify e un video nel
     // browser) è qui che si sceglie quale seguire.
     HMENU players = CreatePopupMenu();
-    AppendMenuW(players, MF_STRING, IDM_SESSION_AUTO, L"Automatic");
+    AppendMenuW(players, MF_STRING, IDM_SESSION_AUTO, L"自动");
     if (!state.sessions.empty()) AppendMenuW(players, MF_SEPARATOR, 0, nullptr);
 
     UINT id      = IDM_SESSION_FIRST;
@@ -160,10 +160,10 @@ UINT ShowContextMenu(HWND hwnd, POINT screenPt, const MenuState& state) {
     CheckMenuRadioItem(players, IDM_SESSION_AUTO, id - 1, checked, MF_BYCOMMAND);
 
     HMENU edges = CreatePopupMenu();
-    AppendMenuW(edges, MF_STRING, IDM_EDGE_BOTTOM, L"Bottom");
-    AppendMenuW(edges, MF_STRING, IDM_EDGE_TOP, L"Top");
-    AppendMenuW(edges, MF_STRING, IDM_EDGE_LEFT, L"Left");
-    AppendMenuW(edges, MF_STRING, IDM_EDGE_RIGHT, L"Right");
+    AppendMenuW(edges, MF_STRING, IDM_EDGE_BOTTOM, L"底部");
+    AppendMenuW(edges, MF_STRING, IDM_EDGE_TOP, L"顶部");
+    AppendMenuW(edges, MF_STRING, IDM_EDGE_LEFT, L"左侧");
+    AppendMenuW(edges, MF_STRING, IDM_EDGE_RIGHT, L"右侧");
     CheckMenuRadioItem(edges, IDM_EDGE_BOTTOM, IDM_EDGE_RIGHT,
                        state.edge == DockEdge::Top     ? IDM_EDGE_TOP
                        : state.edge == DockEdge::Left  ? IDM_EDGE_LEFT
@@ -172,9 +172,9 @@ UINT ShowContextMenu(HWND hwnd, POINT screenPt, const MenuState& state) {
                        MF_BYCOMMAND);
 
     HMENU themes = CreatePopupMenu();
-    AppendMenuW(themes, MF_STRING, IDM_THEME_AUTO, L"Follow Windows");
-    AppendMenuW(themes, MF_STRING, IDM_THEME_DARK, L"Dark");
-    AppendMenuW(themes, MF_STRING, IDM_THEME_LIGHT, L"Light");
+    AppendMenuW(themes, MF_STRING, IDM_THEME_AUTO, L"跟随 Windows");
+    AppendMenuW(themes, MF_STRING, IDM_THEME_DARK, L"深色");
+    AppendMenuW(themes, MF_STRING, IDM_THEME_LIGHT, L"浅色");
     CheckMenuRadioItem(themes, IDM_THEME_AUTO, IDM_THEME_LIGHT,
                        state.theme == Theme::Dark    ? IDM_THEME_DARK
                        : state.theme == Theme::Light ? IDM_THEME_LIGHT
@@ -202,35 +202,35 @@ UINT ShowContextMenu(HWND hwnd, POINT screenPt, const MenuState& state) {
     }
     CheckMenuRadioItem(opacity, IDM_OPACITY_FIRST, opacityId - 1, opacityChecked, MF_BYCOMMAND);
 
-    const std::wstring who     = state.playerName.empty() ? L"the player" : state.playerName;
+    const std::wstring who     = state.playerName.empty() ? L"播放器" : state.playerName;
     const bool         overlay = state.mode == BarMode::Overlay;
 
-    AppendMenuW(menu, MF_STRING, IDM_BAR_TOGGLE, state.barVisible ? L"Hide bar" : L"Show bar");
+    AppendMenuW(menu, MF_STRING, IDM_BAR_TOGGLE, state.barVisible ? L"隐藏悬浮条" : L"显示悬浮条");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(modes), L"Mode");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(modes), L"模式");
     AppendMenuW(menu, MF_POPUP | (overlay ? MF_ENABLED : MF_GRAYED),
-                reinterpret_cast<UINT_PTR>(looks), L"Look");
+                reinterpret_cast<UINT_PTR>(looks), L"外观");
     AppendMenuW(menu, MF_POPUP | (state.mode == BarMode::Docked ? MF_ENABLED : MF_GRAYED),
-                reinterpret_cast<UINT_PTR>(edges), L"Edge");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(players), L"Player");
-    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(themes), L"Theme");
+                reinterpret_cast<UINT_PTR>(edges), L"边缘");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(players), L"播放器");
+    AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(themes), L"主题");
     AppendMenuW(menu, MF_POPUP | (overlay ? MF_ENABLED : MF_GRAYED),
-                reinterpret_cast<UINT_PTR>(opacity), L"Idle opacity");
+                reinterpret_cast<UINT_PTR>(opacity), L"静置透明度");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING | (state.autoMinimize ? MF_CHECKED : MF_UNCHECKED),
-                IDM_AUTOMIN_TOGGLE, (L"Minimize " + who).c_str());
-    AppendMenuW(menu, MF_STRING, IDM_PLAYER_RESTORE, (L"Restore " + who).c_str());
+                IDM_AUTOMIN_TOGGLE, (L"最小化" + who).c_str());
+    AppendMenuW(menu, MF_STRING, IDM_PLAYER_RESTORE, (L"恢复" + who).c_str());
     AppendMenuW(menu, MF_STRING | (state.pauseOnSwitch ? MF_CHECKED : MF_UNCHECKED),
-                IDM_PAUSE_TOGGLE, L"Pause the player you leave");
+                IDM_PAUSE_TOGGLE, L"切换时暂停离开的播放器");
     AppendMenuW(menu, MF_STRING | (state.playOnSwitch ? MF_CHECKED : MF_UNCHECKED),
-                IDM_PLAY_TOGGLE, L"Play the player you pick");
+                IDM_PLAY_TOGGLE, L"切换时播放选中的播放器");
     AppendMenuW(menu, MF_STRING | (state.lyricsEnabled ? MF_CHECKED : MF_UNCHECKED),
-                IDM_LYRICS_TOGGLE, L"Show synced lyrics");
+                IDM_LYRICS_TOGGLE, L"显示同步歌词");
     AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING | (state.autostart ? MF_CHECKED : MF_UNCHECKED), IDM_AUTOSTART,
-                L"Start with Windows");
-    AppendMenuW(menu, MF_STRING, IDM_OPEN_INI, L"Open minibar.ini");
-    AppendMenuW(menu, MF_STRING, IDM_EXIT, L"Exit");
+                L"开机启动");
+    AppendMenuW(menu, MF_STRING, IDM_OPEN_INI, L"打开 minibar.ini");
+    AppendMenuW(menu, MF_STRING, IDM_EXIT, L"退出");
 
     // La finestra è WS_EX_NOACTIVATE: senza questo il menu non si chiude
     // cliccando fuori.
