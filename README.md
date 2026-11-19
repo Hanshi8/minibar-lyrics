@@ -1,369 +1,270 @@
 # MiniBar
 
-[![build](https://github.com/AceisX/minibar-now-playing-overlay/actions/workflows/build.yml/badge.svg)](https://github.com/AceisX/minibar-now-playing-overlay/actions/workflows/build.yml)
+[![build](https://github.com/Hanshi8/minibar-lyrics/actions/workflows/build.yml/badge.svg)](https://github.com/Hanshi8/minibar-lyrics/actions/workflows/build.yml)
 
-*[Leggi in italiano](README.it.md)*
+基于原版 MiniBar（[AceisX/minibar-now-playing-overlay](https://github.com/AceisX/minibar-now-playing-overlay)）的改版，新增了同步歌词功能。原版英文 README 见上游仓库。
 
-**The lightest music overlay for Windows 11.** ~7 MB of RAM, a ~300 KB executable, no GPU
-work between redraws, and not a single hook or injected DLL — so it is safe to run next to
-an anti-cheat.
+**Windows 11 上最轻的音乐悬浮条。** 内存占用约 7 MB，可执行文件约 350 KB，重绘之间不占用 GPU，没有任何钩子或注入的 DLL，所以和反作弊软件一起运行也很安全。
 
-<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/minibar.gif" width="480" alt="MiniBar: hover, scrolling title, track change, volume">
+<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/minibar.gif" width="480" alt="MiniBar：悬停、滚动歌名、切歌、音量">
 
-MiniBar reads the media session that Windows already knows about, so it works with whatever
-you play music in — Spotify, Tidal, YouTube Music in a browser, foobar2000, the Windows
-media player. No account, no API key, no plugin, nothing to log into.
+MiniBar 读取 Windows 本来就知道的媒体会话，所以不管你用什么放音乐都能用 —— Spotify、Tidal、浏览器里的 YouTube Music、foobar2000、Windows 媒体播放器。不用账号、不用 API key、不用插件、不用登录。
 
-## Why it is small
+## 歌词（本改版新增）
 
-Most "now playing" widgets are web apps in a costume: an Electron shell, or a .NET runtime,
-or a WebView. MiniBar is a Win32 window that rasterizes with Direct2D in software and
-presents with `UpdateLayeredWindow`. There is no render loop: it redraws when something
-changes and sleeps in the message loop the rest of the time.
+换歌时自动去网上找同步歌词，先找 LRCLIB，找不到再试网易云公开接口，不用登录、不用 API key。歌词按播放进度自动切行，长行会自动滚动。
 
-| | Measured |
+- **任务栏常驻显示**：有歌词的歌，任务栏小药丸会自动展开，常驻显示歌名 + 当前歌词行，不用再悬停才看得到。没歌词时（比如看视频、直播）保持原样：平时只显示封面和按钮，悬停才展开看标题。
+- **第二行逻辑**：有歌词显示当前歌词行，没歌词显示歌手，和以前一样。
+- **视频、直播**：封面就是系统给的视频缩略图，照常显示；没有歌词就不会出现歌词行。
+- **开关**：右键托盘图标 → `显示同步歌词` 可以开关歌词，也可以在 `minibar.ini` 里设置。
+- **中文歌**：中文歌名、歌词正常显示（DirectWrite 会自动用系统里的中文字体补齐）。歌太冷门、LRCLIB 和网易云都没收录同步歌词时（纯音乐、直播、视频一般都没有），就只显示歌名和封面，不会报错。
+- **内存**：歌词模块常驻多不到 1 MB，整机还是约 7 MB 的水平。
+
+```ini
+[lyrics]
+enabled=1          ; 1=显示歌词，0=关闭（等同于菜单里的开关）
+taskbar_expand=1   ; 1=有歌词时任务栏药丸自动展开，0=只在悬停时展开
+```
+
+## 为什么它这么小
+
+多数“正在播放”小部件都是套了壳的网页应用：一个 Electron 外壳，或者一个 .NET 运行时，或者一个 WebView。MiniBar 是一个 Win32 窗口，用 Direct2D 以软件方式光栅化，再用 `UpdateLayeredWindow` 呈现。没有渲染循环：有变化时才重绘，其余时间都在消息循环里睡觉。
+
+| | 实测 |
 |---|---|
-| RAM (private working set) | **~7 MB** in the bar look, ~5.5 MB in the tile |
-| Executable | **303 KB** (the release asset, built by the CI), no runtime to install |
-| CPU at rest | **0.03 %** of one core between events — **0.0 %** in Task Manager |
-| GPU between redraws | **0 %** — there is no GPU device at all |
-| Start to visible bar | **~57 ms** |
+| 内存（私有工作集） | 横条外观约 **7 MB**，方块约 5.5 MB |
+| 可执行文件 | 约 **350 KB**（CI 编译的 release 文件），不用安装运行时 |
+| 静置时 CPU | 一个核心的 **0.03%**，任务管理器里显示 **0.0%** |
+| 重绘之间的 GPU | **0%**，根本没有 GPU 设备 |
+| 启动到显示悬浮条 | 约 **57 ms** |
 
-A track change costs more than nothing — decoding the cover, picking its color, fading it
-in — so a minute that contains one measures a few tenths of a percent instead of a few
-hundredths. Between events the process does nothing at all. The first run of a freshly
-downloaded executable is also slower than 57 ms, by a lot and unpredictably: Windows scans a
-new file before letting it run.
+切歌的开销比什么都不做要大 —— 解码封面、取它的主色、淡入 —— 所以包含一次切歌的那一分钟，CPU 会测到百分之零点几，而不是百分之零点零几。两次事件之间进程什么都不做。刚下载的可执行文件第一次运行也会比 57 ms 慢得多，而且没法预测：Windows 会先扫描新文件才放行。
 
-It also never touches another process. No DLL injection, no DirectX or Vulkan hooks, no
-global `SetWindowsHookEx`. Everything it knows about other applications it learns through
-public, out-of-process APIs — the same ones the Windows volume flyout uses. That is a
-deliberate design constraint, because those are exactly the patterns that anti-cheat
-systems flag.
+它也从不碰其他进程。没有 DLL 注入，没有 DirectX 或 Vulkan 钩子，没有全局 `SetWindowsHookEx`。它对其他应用的了解全部来自公开的、进程外的 API —— 和 Windows 音量浮窗用的同一批。这是刻意的设计约束，因为那些正是反作弊系统会盯上的模式。
 
-**Why there is no comparison table here.** The obvious question is how this compares to
-the alternatives, and the honest answer is that we could not measure them under conditions
-we would be willing to publish. The closest projects are distributed in ways that do not
-fit a portable, no-install test: [ModernFlyouts](https://github.com/ModernFlyouts-Community/ModernFlyouts)
-(WinUI/.NET) ships only as an MSIX package, and its last release is 0.9.3 from April 2021;
-[lofi](https://github.com/dvx/lofi) (Electron) ships a Windows installer that writes
-uninstall entries to the registry, and needs a Spotify login before it displays anything;
-[Rainmeter](https://github.com/rainmeter/rainmeter) is a skin engine rather than a
-now-playing app, and the skins it bundles include no now-playing skin at all, so any
-measurement would really be measuring somebody's third-party skin. Rather than publish
-numbers we did not measure ourselves, we publish only ours — and the method to reproduce
-them: private working set and CPU sampled over 60 seconds with music playing and the mouse
-away from the bar, on Windows 11 25H2.
+**这里为什么没有对比表。** 最直接的问题是它和替代品比怎么样，老实说，我们没法在自己愿意公开的条件下测出它们。最接近的项目分发方式都不适合做便携、无安装的测试：[ModernFlyouts](https://github.com/ModernFlyouts-Community/ModernFlyouts)（WinUI/.NET）只发 MSIX 包，而且上一个版本还是 2021 年 4 月的 0.9.3；[lofi](https://github.com/dvx/lofi)（Electron）发的是 Windows 安装程序，会往注册表写卸载项，而且要先登录 Spotify 才能显示东西；[Rainmeter](https://github.com/rainmeter/rainmeter)是个皮肤引擎而不是正在播放应用，它自带的皮肤里根本没有正在播放皮肤，所以测出来的其实是别人的第三方皮肤。与其发布我们自己都没测过的数字，不如只发布我们自己的 —— 以及复现的方法：在 Windows 11 25H2 上，放着音乐、鼠标离开悬浮条，60 秒采样私有工作集和 CPU。
 
-## Install
+## 安装
 
-1. Download `minibar.exe` from the [latest release](https://github.com/AceisX/minibar-now-playing-overlay/releases/latest).
-2. Put it wherever you like and run it.
+1. 从[本仓库的 release](https://github.com/Hanshi8/minibar-lyrics/releases/tag/v1.2.0-lyrics)下载 `minibar.exe`。
+2. 放到你喜欢的地方，运行它。
 
-That is the whole procedure. The executable is self-contained — static CRT, no VC++
-redistributable, no DLLs next to it — and it is portable: the only file it ever writes is
-`minibar.ini`, right beside itself. Nothing goes into AppData or the registry.
+整个安装过程就是这样。可执行文件是自包含的 —— 静态 CRT，不用 VC++ 运行库，旁边也不用放 DLL —— 而且是便携的：它唯一会写的文件就是旁边的 `minibar.ini`。什么都不写进 AppData 或注册表。
 
-With [Scoop](https://scoop.sh):
+Scoop 和 winget 装的是原版（没有歌词功能）：
 
 ```powershell
 scoop bucket add aceisx https://github.com/AceisX/scoop-bucket
 scoop install minibar
 ```
 
-`winget install minibar` is on its way: the manifest is submitted to the community
-repository and will appear once it is merged.
+`winget install minibar` 正在路上：清单已经提交到社区仓库，合并后就会出现。
 
-**Requirements:** Windows 11 x64. Nothing else.
+**系统要求：** Windows 11 x64。没有别的。
 
-## Three modes
+## 三种模式
 
-|  | Overlay | Docked | In the taskbar |
+|  | 悬浮 | 停靠 | 嵌到任务栏 |
 |---|---|---|---|
-| Position | anywhere, drag it | strip along a screen edge | in the taskbar's empty space |
-| Reserves screen space | no | yes — maximized windows respect it | no |
-| Click-through at rest | yes | no | no |
-| Opacity at rest | reduced (`idle_opacity`) | full | full |
-| Controls | on hover | always | always |
-| Over fullscreen-windowed games | yes | no | yes, while the taskbar is visible |
-| Looks available | bar or tile | bar | compact pill |
-| Default footprint | 293×50 or 92×92 DIP | 50 DIP tall, 56 DIP wide on a side edge | taskbar height |
+| 位置 | 任意位置，可拖动 | 沿屏幕边缘的一条 | 在任务栏的空白处 |
+| 占用屏幕空间 | 不占用 | 占用，最大化的窗口会让着它 | 不占用 |
+| 静置时点击穿透 | 是 | 否 | 否 |
+| 静置时不透明度 | 降低（`idle_opacity`） | 完整 | 完整 |
+| 控制按钮 | 悬停时出现 | 一直显示 | 一直显示 |
+| 全屏窗口化游戏上 | 看得到 | 看不到 | 看得到（任务栏可见时） |
+| 可用外观 | 横条或方块 | 横条 | 紧凑药丸 |
+| 默认尺寸 | 293×50 或 92×92 DIP | 高 50 DIP，侧边宽 56 DIP | 任务栏高度 |
 
-**Overlay**, the bar look — drag it anywhere, click-through and dimmed until you hover it.
-Whenever it appears — at startup, when you bring it back from the tray or the hotkey, or
-when you switch into overlay mode — it shows itself at full opacity for a couple of seconds
-before dimming, so you can find it even with the idle opacity turned way down:
+**悬浮**，横条外观 —— 拖到任意位置，静置时点击穿透、变暗，直到你悬停上去。每次它出现 —— 启动时、从托盘或热键把它叫回来时、或者切到悬浮模式时 —— 它会先以完整不透明度显示几秒再变暗，这样即使静置透明度调得很低，你也能找到它：
 
-<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/overlay-bar.png" width="318" alt="Overlay, bar look">
+<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/overlay-bar.png" width="318" alt="悬浮，横条外观">
 
-**Overlay**, the tile look — just the cover and a progress line; the controls appear over it
-on hover:
+**悬浮**，方块外观 —— 只有封面和一条进度线，悬停时控制按钮浮在上面：
 
-<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/overlay-tile.png" width="144" alt="Tile at rest"> <img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/overlay-tile-hover.png" width="144" alt="Tile with controls">
+<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/overlay-tile.png" width="144" alt="方块，静置"> <img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/overlay-tile-hover.png" width="144" alt="方块，悬停显示控制按钮">
 
-**Docked** — a strip along a screen edge, with space reserved: maximized windows stop above
-it instead of hiding it. Any of the four edges, from **Edge** in the menu.
+**停靠** —— 沿屏幕边缘的一条，会预留空间：最大化的窗口会在它上面停住，而不是盖住它。四条边都可以，从菜单里的**边缘**选。
 
-<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/docked.png" width="952" alt="Docked to an edge">
+<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/docked.png" width="952" alt="停靠到屏幕边缘">
 
-On the left and right edges the strip is narrow and tall, so it uses a column layout
-instead: cover, progress, and the three controls stacked, centered vertically. There is no
-text there — 56 DIP is not enough for a title, and rotating it would be worse than leaving
-it out.
+在左右两边，这条带子又窄又高，所以用竖排布局：封面、进度条和三个控制按钮竖着排、上下居中。那里没有文字 —— 56 DIP 放不下歌名，旋转显示还不如不显示。
 
-**In the taskbar** — a pill in the empty space. It follows the taskbar's height, edge, DPI
-and theme, widens on hover to show title and artist, and disappears together with the
-taskbar when it auto-hides or a fullscreen app takes over.
+**嵌到任务栏** —— 任务栏空白处的一颗药丸。它跟随任务栏的高度、边缘、DPI 和主题，悬停时变宽显示歌名和歌手，任务栏自动隐藏或全屏应用接管时，它也跟着消失。
 
-<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/taskbar.png" width="367" alt="Inside the taskbar">
+<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/taskbar.png" width="367" alt="嵌在任务栏里">
 
-Switch mode and look from the right-click menu, or from the tray icon.
+从右键菜单或托盘图标切换模式和外观。
 
-## Using it
+## 使用方法
 
-| What | How |
+| 做什么 | 怎么做 |
 |---|---|
-| Show the controls | hover the bar |
-| Play/pause, previous, next | click the buttons |
-| Seek | click the progress bar (if the player allows it) |
-| Move the bar | drag it (overlay only); the position is saved |
-| **Player volume up/down** | **mouse wheel over the bar** |
-| **Mute the player** | **middle-click the bar** |
-| Resize | **Ctrl** + wheel over the bar (overlay only), or `bar_width` / `tile_size` in the INI |
-| Change mode or look | right-click → Mode / Look |
-| Move the docked strip to another edge | right-click → Edge (Bottom / Top / Left / Right) |
-| Choose which player to follow | right-click → Player; the one you leave pauses, the one you pick starts |
-| Light or dark | right-click → Theme (Follow Windows / Dark / Light) |
-| Dim it more or less at rest | right-click → Idle opacity (overlay only) |
-| Start with Windows | right-click → Start with Windows |
-| Menu | right-click the bar, or the tray icon |
-| Show/hide | double-click the tray icon, or the hotkey if enabled |
+| 显示控制按钮 | 悬停到悬浮条上 |
+| 播放/暂停、上一首、下一首 | 点按钮 |
+| 快进 | 点进度条（如果播放器允许） |
+| 移动悬浮条 | 拖动（仅悬浮模式），位置会自动保存 |
+| **播放器音量加/减** | **在悬浮条上滚动鼠标滚轮** |
+| **播放器静音** | **中键点击悬浮条** |
+| 调整大小 | 悬浮条上按住 **Ctrl** 滚动滚轮（仅悬浮模式），或改 INI 里的 `bar_width` / `tile_size` |
+| 切换模式或外观 | 右键 → 模式 / 外观 |
+| 把停靠的条子移到另一条边 | 右键 → 边缘（底部 / 顶部 / 左侧 / 右侧） |
+| 选择跟随哪个播放器 | 右键 → 播放器；离开的那个会暂停，选中的那个会开始 |
+| 浅色或深色 | 右键 → 主题（跟随 Windows / 深色 / 浅色） |
+| 静置时更暗或更亮 | 右键 → 静置透明度（仅悬浮模式） |
+| 开机启动 | 右键 → 开机启动 |
+| 菜单 | 右键点悬浮条，或点托盘图标 |
+| 显示/隐藏 | 双击托盘图标，或用热键（如果开了） |
 
-Everything in that menu is also a line in `minibar.ini`, and the file stays the place for the
-details — exact sizes, hotkey, docking edge. The menu covers what you actually change while
-using it.
+菜单里的每一项在 `minibar.ini` 里也都有一行，文件里放的是细节 —— 精确尺寸、热键、停靠边缘。菜单只放你平时真正会改的东西。
 
-The wheel (volume and resizing) relies on the Windows setting "scroll inactive windows when
-I hover over them", which is on by default.
+滚轮（调音量和调大小）依赖 Windows 的设置“悬停时滚动非活动窗口”，默认就是开着的。
 
-### Starting with Windows, without the registry
+### 开机启动，不动注册表
 
-**Start with Windows** puts a shortcut in your Startup folder — the one you can open with
-`shell:startup` — pointing at wherever `minibar.exe` currently is. Nothing is written to the
-registry, nothing is installed, and you can delete that shortcut by hand without MiniBar
-getting confused: the menu reads the checkbox state from whether the file exists, not from a
-setting of its own.
+**开机启动**会在你的启动文件夹 —— 用 `shell:startup` 能打开的那个 —— 里放一个快捷方式，指向 `minibar.exe` 现在的位置。什么都不写进注册表，什么都不安装，你也可以手动删掉那个快捷方式，MiniBar 不会因此出错：菜单里复选框的状态是看文件在不在，而不是看自己的设置。
 
-### The volume is the player's, not the system's
+### 音量是播放器的，不是系统的
 
-MiniBar moves the player's own slider in the Windows mixer, so nothing else on your machine
-changes volume. Which process that is comes from the media session itself: its
-`SourceAppUserModelId` is matched against the owner of every mixer session, by executable
-name or by package identity for Store apps.
+MiniBar 动的是播放器自己在 Windows 混音器里的滑块，所以你机器上别的东西音量都不会变。是哪个进程，由媒体会话自己说了算：它的 `SourceAppUserModelId` 会和每个混音器会话的拥有者比对，按可执行文件名比对，商店应用按包身份比对。
 
-If the player has no audio session — not running, or it has never made a sound — there is
-nothing to move, and the wheel goes back to resizing the bar without needing Ctrl. The level
-shows for a second and a half on the progress bar itself, in a light color instead of the
-album color: no panel appears, no extra pixel is occupied.
+如果播放器没有音频会话 —— 没在运行，或者从来没出过声 —— 就没什么可调的，滚轮会变回调悬浮条大小，不用按 Ctrl。音量会在进度条自己身上显示一秒半，用浅色而不是专辑色：不弹出面板，不多占一个像素。
 
-The Core Audio interfaces are created the first time you use the wheel, not at startup. If
-you never touch the volume, you never pay for it.
+Core Audio 接口是第一次用滚轮时才创建的，不是启动时。如果你从来不动音量，就永远不用付这笔开销。
 
-### Two players at once
+### 同时有两个播放器
 
-Anything that registers a media session shows up under **Player** in the menu — including a
-video in a browser tab. Pick one and MiniBar follows it; pick **Automatic** and it follows
-whatever Windows considers current.
+任何注册了媒体会话的东西都会出现在菜单的**播放器**下面 —— 包括浏览器标签页里的一个视频。选一个，MiniBar 就跟随它；选**自动**，就跟随 Windows 认为当前的那一个。
 
-Browsers appear under their real name. Firefox and web apps register their media session
-under an opaque identifier — Firefox uses a hexadecimal hash of its install path — which
-resembles no process name and would leave the menu showing something like `F9EA399AADDF5B80`.
-MiniBar asks the desktop's windows which identifier they declare, finds the one that
-matches, and takes the name the executable gives itself. That is also what makes the volume
-wheel and the minimize work for a browser: without it, there is no way to tell which process
-that identifier belongs to.
+浏览器会显示真名。Firefox 和网页应用注册媒体会话时用的是一个看不懂的标识符 —— Firefox 用的是它安装路径的十六进制哈希 —— 看起来不像任何进程名，菜单里会显示成 `F9EA399AADDF5B80` 这种东西。MiniBar 会去问桌面的窗口它们声明了哪个标识符，找到匹配的那一个，再用可执行文件自己的名字。这也是滚轮调音量和最小化对浏览器生效的原因：没有它，就没法知道那个标识符属于哪个进程。
 
-When you switch, the player you are leaving is paused and the one you pick starts, so
-switching player means what you would expect it to mean: the music moves. The comparison is
-between the player followed before and the one followed after, not between menu entries: if
-the choice lands on the same player, nobody is being left behind and nothing is touched.
+切换时，你离开的播放器会被暂停，你选中的那个会开始，所以切换播放器的意思就是你想的那个意思：音乐跟着走。比较的是切换前后跟随的播放器，而不是菜单项：如果选中的就是同一个播放器，谁都不会被留下，什么都不会动。
 
-Two details that keep this from being annoying. Pausing applies to every session of the app
-you leave — a browser can have several — while starting applies only to the one session
-MiniBar is now following, because starting three paused tabs at once would be worse than the
-problem it solves. And if the new player says it cannot start right now, MiniBar does not
-insist. Both halves can be turned off separately, from the menu or with `pause_on_switch`
-and `play_on_switch`.
+有两个细节让这件事不烦人。暂停会作用于你离开的那个应用的所有会话 —— 一个浏览器可以有好几个 —— 而开始只作用于 MiniBar 现在跟随的那一个会话，因为一次启动三个暂停的标签页比要解决的问题还糟。如果新的播放器说它现在不能开始，MiniBar 也不会坚持。这两半可以分别关掉，从菜单或用 `pause_on_switch` 和 `play_on_switch`。
 
-### It gets the player out of the way
+### 它会把播放器收起来
 
-While MiniBar is running, the player's window is minimized (configurable), so it is not in
-the way — and a window that is no longer being composited stops redrawing. Measured on
-Spotify (Windows 11 25H2, music playing, 60-second windows alternated over three rounds):
-about 10 % of one core with the window on screen, about 2 % minimized. The saving is CPU,
-not memory — RAM drops by a few tens of MB out of five hundred — and it applies when the
-window would otherwise be on screen: a window already covered by others costs about the same
-as a minimized one. Hiding it instead of minimizing it (`hide_instead=1`) buys nothing more;
-it only takes the window out of the taskbar and Alt-Tab as well. MiniBar's own cost is in
-the table above.
+MiniBar 运行时，播放器的窗口会被最小化（可以设置），这样它就不挡事 —— 而一个不再被合成的窗口也会停止重绘。在 Spotify 上实测（Windows 11 25H2，放着音乐，60 秒窗口轮换三轮）：窗口在屏幕上时约占一个核心的 10%，最小化后约 2%。省的是 CPU，不是内存 —— 内存只会从五百多 MB 里掉几十 MB —— 而且只在窗口本来会在屏幕上时才省：一个已经被别的窗口盖住的窗口，最小化后开销差不多。改成隐藏而不是最小化（`hide_instead=1`）省得并不更多，只是会同时把它从任务栏和 Alt-Tab 里拿掉。MiniBar 自己的开销见上面的表。
 
-The window is **always** restored when MiniBar exits. If a previous run died badly with the
-window hidden, the next start recovers it: the marker left on disk also records which player
-it was.
+退出 MiniBar 时窗口**一定**会被恢复。如果上一次运行死得很难看、窗口还藏着，下次启动时会恢复它：留在磁盘上的标记也记录了那是哪个播放器。
 
-## The color comes from the album
+## 颜色来自专辑封面
 
-The progress bar — and a breath of the background — take the cover's dominant color. A
-12×12 thumbnail is scaled by WIC alongside the cover being drawn, and the hue band with the
-most weight wins: every pixel counts for how saturated it is, greys and extremes count for
-nothing, and neighbouring bands are summed so a color straddling two of them does not lose
-half its weight. The result is pushed into a saturation and lightness range that stays
-legible on whatever it lands on.
+进度条 —— 以及背景里透出的一点颜色 —— 取封面的主色。WIC 在画封面的同时把一张 12×12 的缩略图缩放到位，色相带里权重最大的获胜：每个像素都按它的饱和度计分，灰色和极端值不计分，相邻的带会加在一起，这样横跨两个带的颜色就不会丢掉一半权重。结果会被推到一个在任何底色上都清晰的饱和度和亮度区间。
 
-Covers without a real color — black and white, busy collages — tint nothing and the default
-green stays. The whole thing costs 144 pixels, once per track.
+没有真实颜色的封面 —— 黑白的、杂乱的拼贴 —— 什么都不染，默认的绿色保持不变。整件事每首歌只花 144 个像素。
 
-## Configuration
+## 配置
 
-On first run `minibar.exe` writes `minibar.ini` next to itself.
+第一次运行时 `minibar.exe` 会在自己旁边写出 `minibar.ini`。
 
 ```ini
 [general]
-mode=overlay          ; overlay | docked | taskbar
-theme=auto            ; auto | dark | light — auto follows the Windows app theme,
-                      ; live, no restart; over a game you may want dark regardless
-preferred_app=Spotify ; substring of the media session's SourceAppUserModelId;
-                      ; empty = follow whatever Windows considers current.
-                      ; Also settable from the menu: right-click → Player
+mode=overlay          ; overlay | docked | taskbar（悬浮 | 停靠 | 嵌到任务栏）
+theme=auto            ; auto | dark | light（自动 | 深色 | 浅色），自动跟随 Windows 应用主题，
+                      ; 实时生效，不用重启；在游戏上面可能还是想要深色
+preferred_app=Spotify ; 媒体会话 SourceAppUserModelId 的子串；
+                      ; 留空 = 跟随 Windows 认为当前的那个。
+                      ; 也可以从菜单设置：右键 → 播放器
 
 [overlay]
-layout=bar            ; bar (horizontal strip) | tile (square, cover only)
-bar_width=293         ; DIP, 185-840
-tile_size=92          ; DIP, 68-224
-x=…  y=…              ; written when you drop the bar after a drag
-idle_opacity=140      ; 0-255, opacity at rest
+layout=bar            ; bar（横条）| tile（方块，只有封面）
+bar_width=293         ; DIP，185-840
+tile_size=92          ; DIP，68-224
+x=…  y=…              ; 拖动悬浮条放下后写入
+idle_opacity=140      ; 0-255，静置时的不透明度
 
 [docked]
-edge=bottom           ; bottom | top | left | right
+edge=bottom           ; bottom | top | left | right（底部 | 顶部 | 左侧 | 右侧）
 
 [taskbar]
-anchor=auto           ; auto | left | center | right
-                      ; auto: left when app icons are centered,
-                      ;       center when they are left-aligned
+anchor=auto           ; auto | left | center | right（自动 | 左 | 中 | 右）
+                      ; 自动：应用图标居中时靠左，
+                      ;       图标左对齐时居中
 
-[player]              ; called [spotify] until 1.0; old files are still read
-auto_minimize=1       ; minimize the player when MiniBar starts
-hide_instead=0        ; 1 = SW_HIDE instead of SW_MINIMIZE (more aggressive)
-launch_if_missing=0   ; start the player if it is not running
-launch_path=          ; executable to start; empty = guessed from the player's name
-pause_on_switch=1     ; pause the player you leave when you switch from the menu
-play_on_switch=1      ; and start the one you pick, if it was not already playing
+[player]              ; 1.0 之前叫 [spotify]，旧文件照样能读
+auto_minimize=1       ; MiniBar 启动时最小化播放器
+hide_instead=0        ; 1 = 用 SW_HIDE 代替 SW_MINIMIZE（更彻底）
+launch_if_missing=0   ; 播放器没运行时启动它
+launch_path=          ; 要启动的可执行文件，留空 = 按播放器名字猜
+pause_on_switch=1     ; 从菜单切换时，暂停离开的那个播放器
+play_on_switch=1      ; 并启动选中的那个，如果它之前没在播放
 
 [volume]
-wheel_step=4          ; volume percentage points per wheel notch, 1-25
+wheel_step=4          ; 每滚一格音量变化的百分点，1-25
 
 [hotkey]
 enabled=0
 modifiers=alt+shift
 key=M
+
+[lyrics]              ; 本改版新增
+enabled=1           ; 1=显示同步歌词，0=关闭（等同于菜单里的开关）
+taskbar_expand=1      ; 1=有歌词时任务栏药丸自动展开，0=只在悬停时展开
 ```
 
-## Implementation notes
+## 实现说明
 
-The full design document — the idea, the hard constraints, the performance budget and the
-reasoning behind every choice — is [docs/design.md](docs/design.md) (in Italian).
+完整设计文档 —— 想法、硬约束、性能预算和每个选择背后的理由 —— 在 [docs/design.md](docs/design.md)（意大利语）。
 
-### Software rendering instead of DirectComposition
+### 用软件渲染，不用 DirectComposition
 
-The obvious way to draw a translucent always-on-top window is a DXGI composition swapchain
-plus DirectComposition. That was built first, then measured against the simpler fallback —
-Direct2D rasterizing in software into a WIC bitmap, presented with `UpdateLayeredWindow`:
+把一个半透明置顶窗口画出来的直接办法，是 DXGI 合成交换链加 DirectComposition。这个先搭出来了，然后和更简单的备选方案对比着测了一遍 —— Direct2D 以软件方式光栅化到 WIC 位图，再用 `UpdateLayeredWindow` 呈现：
 
-| | D3D11 + DXGI + DirectComposition | D2D software + UpdateLayeredWindow |
+| | D3D11 + DXGI + DirectComposition | D2D 软件 + UpdateLayeredWindow |
 |---|---|---|
-| Private memory | 37.7 MB | **8.7 MB** |
-| Private working set | ~34 MB | **6.1 MB** |
-| Threads | 26–29 | **10–12** |
-| Handles | ~1120 | **~320** |
-| CPU at rest | 0.29 % of a core | **0.10 % of a core** |
+| 私有内存 | 37.7 MB | **8.7 MB** |
+| 私有工作集 | 约 34 MB | **6.1 MB** |
+| 线程 | 26–29 | **10–12** |
+| 句柄 | 约 1120 | 约 **320** |
+| 静置时 CPU | 一个核心的 0.29% | 一个核心的 **0.10%** |
 
-A D3D11 device and its driver cannot be amortized over a 266×45 surface redrawn at most once
-a second. Software rasterization of that surface costs fractions of a millisecond and never
-touches the GPU, which makes "0 % GPU between redraws" structural rather than hoped for.
+一个 D3D11 设备和它的驱动，分摊不到一个最多一秒重绘一次的 266×45 表面上。那个表面的软件光栅化只要零点几毫秒，而且永远不碰 GPU，这让“重绘之间 GPU 占用为 0”是结构性的，而不是碰运气。
 
-### Long titles scroll, but only under the mouse
+### 长歌名会滚动，但只在鼠标下面时
 
-A title that does not fit is truncated with an ellipsis, like anywhere else. Hover it and it
-starts scrolling — out, pause, back — fading at the edges instead of being cut off. The fade
-only appears on the side where the text actually continues: once it reaches the end, the
-right edge is crisp again.
+放不下的歌名会像别处一样截断加省略号。悬停上去它就开始滚动 —— 滚出去、停一下、滚回来 —— 边缘是淡出的，而不是被切断。淡出只出现在文字确实还在继续的那一边：滚到头之后，右边缘又是清晰的。
 
-The timer that animates it is created when the mouse enters and destroyed when it leaves,
-and it is not created at all if the title fits. A scrolling redraw costs 0.64 ms against
-0.39 ms still — under 2 % of a core while you hover, nothing when you do not.
+负责动画的计时器在鼠标进入时创建、离开时销毁，歌名放得下时根本不创建。滚动时一次重绘 0.64 ms，静止时 0.39 ms —— 悬停时不到一个核心的 2%，不悬停时什么都没有。
 
-### Transitions last as long as they need, then the timer is gone
+### 过场动画需要多久就跑多久，然后计时器就没了
 
-On a track change the new cover fades in over the old one in 220 ms, and the progress bar's
-tint travels with it — a color that snapped while the image was still dissolving would be
-more noticeable than the dissolve. In the taskbar the pill eases open instead of jumping.
+切歌时新封面在 220 ms 里在旧封面上淡入，进度条的颜色也跟着一起走 —— 颜色在画面还没溶完时就跳变，会比溶解本身更显眼。在任务栏里，药丸是缓缓张开而不是一下子跳开。
 
-Every transition — hover opacity, cover, pill — runs on one 16 ms timer that starts when
-something begins moving and stops the moment everything is still. The at-rest measurements
-before and after adding them are identical, which is the whole point.
+每个过场 —— 悬停透明度、封面、药丸 —— 都跑在一个 16 ms 的计时器上，有东西开始动时启动，全部静止的瞬间就停。加上它们前后静置时的测量结果是一样的，这就是意义所在。
 
-### Light or dark: two settings, not one
+### 浅色或深色：两个设置，不是一个
 
-Windows keeps two separate values and MiniBar uses them for two different things.
-`SystemUsesLightTheme` is the shell's color, so the taskbar's: it decides the contrast of
-the pill sitting on it. `AppsUseLightTheme` is what applications should follow when they
-draw themselves, and it decides the background MiniBar paints in overlay and docked mode. On
-Windows 11 you can have a dark taskbar with light apps, and then the two should not match.
+Windows 存了两个独立的值，MiniBar 把它们用在两个不同的地方。`SystemUsesLightTheme` 是外壳的颜色，也就是任务栏的：它决定坐在任务栏上的药丸的对比度。`AppsUseLightTheme` 是应用画自己时该跟随的，决定 MiniBar 在悬浮和停靠模式下画的背景。在 Windows 11 上你可以让任务栏深色、应用浅色，这时两者就不该一样。
 
-<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/overlay-bar-light.png" width="318" alt="The bar following a light app theme"> <img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/taskbar-light.png" width="367" alt="The pill on a light taskbar">
+<img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/overlay-bar-light.png" width="318" alt="跟随浅色应用主题的悬浮条"> <img src="https://raw.githubusercontent.com/AceisX/minibar-now-playing-overlay/main/docs/media/taskbar-light.png" width="367" alt="浅色任务栏上的药丸">
 
-The change is applied live on `WM_SETTINGCHANGE`: both values are re-read and the bar is
-redrawn, without recreating anything. `theme=dark` or `theme=light` in the INI overrides it.
+这个变化是在 `WM_SETTINGCHANGE` 上实时应用的：两个值都会重读、悬浮条重绘，不用重建任何东西。INI 里的 `theme=dark` 或 `theme=light` 会覆盖它。
 
-### Taskbar mode is not a deskband
+### 任务栏模式不是 deskband
 
-Drawing *inside* the taskbar, as deskbands (`IDeskBand`) used to, requires Explorer to load a
-DLL into its own process. Windows 11 removed that mechanism — the taskbar is XAML and hosts
-no third-party extensions — and it would be injection anyway.
+像 deskband（`IDeskBand`）那样*在*任务栏里面画，需要 Explorer 把一个 DLL 加载进自己的进程。Windows 11 已经移除了这个机制 —— 任务栏是 XAML，不托管第三方扩展 —— 而且那本来就是注入。
 
-What MiniBar does is put its own topmost window *over* the taskbar's free pixels. Visually
-it is indistinguishable; technically it stays a separate window, so it does not scroll along
-with the app icons. To find free space it reads `TaskbarAl` (the icon alignment) and the
-rectangle of `TrayNotifyWnd` (where the notification area begins), both read-only and
-out-of-process. It registers as an appbar with `ABM_NEW` but **never** calls `ABM_SETPOS`, so
-it receives `ABN_POSCHANGED`, `ABN_STATECHANGE` and `ABN_FULLSCREENAPP` without taking screen
-space away.
+MiniBar 做的，是把自己的置顶窗口放在任务栏的空闲像素*上面*。视觉上没有区别；技术上它还是一个独立的窗口，所以不会跟着应用图标一起滚动。找空闲位置时，它读 `TaskbarAl`（图标对齐方式）和 `TrayNotifyWnd`（通知区域开始的地方）的矩形，都是只读的、进程外的。它用 `ABM_NEW` 注册为 appbar，但**从不**调用 `ABM_SETPOS`，所以能收到 `ABN_POSCHANGED`、`ABN_STATECHANGE` 和 `ABN_FULLSCREENAPP`，而不占走屏幕空间。
 
-Taskbar app icons on Windows 11 are not windows and cannot be enumerated: the position comes
-from the alignment the system declares, not from measuring where the buttons end. With very
-many windows open and left alignment, a centered pill can end up over them; use `anchor=right`
-in that case.
+Windows 11 的任务栏应用图标不是窗口，没法枚举：位置来自系统声明的对齐方式，而不是量按钮在哪里结束。窗口开得非常多、又是左对齐时，居中的药丸可能会压到它们上面；这时用 `anchor=right`。
 
-### What it will not do
+### 它不会做的事
 
-Over an *exclusive* fullscreen game the overlay is not visible. That is by design and there
-is no workaround here — that is what the Windows Game Bar is for. Borderless windowed, which
-is what most games use now, works.
+在*独占*全屏游戏上面，悬浮条是看不到的。这是设计如此，这里没有变通办法 —— 那是 Windows 游戏栏的活。现在多数游戏用的无边框窗口化是可以的。
 
-## Building it
+## 编译
 
-You need nothing installed: the toolchain lives in `tools\` and is portable, like the
-application.
+什么都不用安装：工具链在 `tools\` 里，是便携的，和应用本身一样。
 
 ```powershell
-.\build.ps1                 # Release (default)
+.\build.ps1                 # Release（默认）
 .\build.ps1 -Config debug
-.\build.ps1 -Clean          # from scratch
+.\build.ps1 -Clean          # 从头开始
 ```
 
-The executable lands in `dist\minibar.exe`. To rebuild the toolchain itself on another
-machine, see [README.it.md](README.it.md).
+可执行文件在 `dist\minibar.exe`。要在另一台机器上重建工具链本身，见 [README.it.md](README.it.md)。
 
-## License
+## 许可证
 
-MIT — © 2026 MiniBar contributors. See [LICENSE](LICENSE).
+MIT — © 2026 MiniBar contributors。见 [LICENSE](LICENSE)。
